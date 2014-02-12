@@ -81,13 +81,13 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 $meta = $db->get_results($sql, ARRAY_A);
 
                 // if no s3 data exists already then generate
-                if (sizeof($meta) === 0 && sizeof($attached) == 1) {
+                if (sizeof($meta) === 0 && sizeof($attached) === 1) {
                     // build the new s3 meta data
                     $url = 'wp-content/uploads/'.($db->blogid != 1 ? 'sites/'.$db->blogid.'/' : '').$attached[0]['meta_value'];
-                    $metaData = array('bucket' => $bucket, 'value' => $url);
+                    $metaData = array('bucket' => $bucket, 'key' => $url);
 
                     // save the meta data
-                    if (!add_post_meta($record['ID'], 'amazonS3_info', serialize($metaData))) {
+                    if (!add_post_meta($record['ID'], 'amazonS3_info', $metaData)) {
                         WP_CLI::warning('Image migration failed on "'.$record['ID'].'"');
                     }
                 }
@@ -152,7 +152,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
         // loop through the data
         for ($offset = 0; $offset < $count; $offset += $limit) {
             // get the data to search through
-            $data = $this->GetDataSlice($db, $db->posts, $limit, $offset);
+            $data = $this->GetDataSlice($db, $db->postmeta, $limit, $offset);
 
             // loop through the data looking for fields to replace
             foreach ($data as $record) {
@@ -165,7 +165,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 }
 
                 // save the post meta
-                update_post_meta($record['post_id'], $record['meta_key'], serialize($meta));
+                update_post_meta($record['post_id'], $record['meta_key'], $meta);
 
                 // update the progress var
                 $progress->tick();
@@ -184,7 +184,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
      */
     private function MigrateOptions(wpdb $db, $limit, $siteDomain, $forceCount) {
         // get a count of posts
-        $count = $forceCount ? $forceCount : $this->GetCount($db, $db->postmeta);
+        $count = $forceCount ? $forceCount : $this->GetCount($db, $db->options);
 
         // init a progress bar
         $progress = \WP_CLI\Utils\make_progress_bar('Migrate Options', $count);
@@ -192,7 +192,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
         // loop through the data
         for ($offset = 0; $offset < $count; $offset += $limit) {
             // get the data to search through
-            $data = $this->GetDataSlice($db, $db->posts, $limit, $offset);
+            $data = $this->GetDataSlice($db, $db->options, $limit, $offset);
 
             // loop through the data looking for fields to replace
             foreach ($data as $record) {
@@ -201,11 +201,13 @@ class S3_Migrator_Command extends WP_CLI_Command {
 
                 // loop through the meta values and update them
                 foreach ($option as $key => $value) {
-                    $option[$key] = $this->ReplaceUrl($value, $siteDomain);
+                    if (is_string($value)) {
+                        $option[$key] = $this->ReplaceUrl($value, $siteDomain);
+                    }
                 }
 
                 // save the post meta
-                update_option($record['option_name'], serialize($option));
+                update_option($record['option_name'], $option);
 
                 // update the progress var
                 $progress->tick();
@@ -272,7 +274,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
      */
     private function GetCount(wpdb $db, $table) {
         // get a count of all data
-        $sql = 'SELECT COUNT(id) AS counted FROM '.$table;
+        $sql = 'SELECT COUNT(*) AS counted FROM '.$table;
         $data = $db->get_row($sql);
 
         return isset($data->counted) ? $data->counted : 0;
