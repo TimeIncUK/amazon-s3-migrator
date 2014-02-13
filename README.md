@@ -34,6 +34,6 @@ After you've finished uploading your files, you need to set all of your images t
 
 With the first copied over, ssh into your server, navigate to your wordpress installation and run the following:
 
-    wp s3 migrate --url="<site_url>" --path="htdocs"
+    wp s3 Migrate --url="<site_url>" --path="htdocs"
 
 The `blog id` is retrieved from the database table `wp_blogs`.
