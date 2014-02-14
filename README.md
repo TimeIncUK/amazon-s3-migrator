@@ -34,6 +34,6 @@ After you've finished uploading your files, you need to set all of your images t
 
 With the first copied over, ssh into your server, navigate to your wordpress installation and run the following:
 
-    wp s3 Migrate --url="<site_url>" --path="htdocs" --batch=1000 --domain=s3-eu-west-1.amazonaws.com/testbucket
+    wp s3 Migrate --url="<site_url>" --path="htdocs" --domain=s3-eu-west-1.amazonaws.com/testbucket --type=all --ignore-meta-keys=amazonS3_info
 
 The `blog id` is retrieved from the database table `wp_blogs`.

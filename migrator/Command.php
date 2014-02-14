@@ -157,8 +157,18 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param array $ignoreKeys An array of keys to ignore converting
      */
     private function MigratePostMeta(wpdb $db, $limit, $siteDomain, $ignoreKeys = array()) {
+        // loop through the ignore keys and add them to the sql
+        $additionalOptions = array('meta_value LIKE "%http%"');
+        foreach ($ignoreKeys as $key) {
+            $additionalOptions[] = 'meta_key != "'.$key.'"';
+        }
+        $additionalSql = '';
+        if (sizeof($additionalOptions) > 0) {
+            $additionalSql = 'WHERE '.implode(' AND ', $additionalOptions);
+        }
+
         // get a count of posts
-        $count = $this->GetCount($db, $db->postmeta);
+        $count = $this->GetCount($db, $db->postmeta, $additionalSql);
 
         // init a progress bar
         $progress = \WP_CLI\Utils\make_progress_bar('Migrate Post Meta', $count);
@@ -166,7 +176,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
         // loop through the data
         for ($offset = 0; $offset < $count; $offset += $limit) {
             // get the data to search through
-            $data = $this->GetDataSlice($db, $db->postmeta, $limit, $offset);
+            $data = $this->GetDataSlice($db, $db->postmeta, $limit, $offset, $additionalSql);
 
             // loop through the data looking for fields to replace
             foreach ($data as $record) {
@@ -281,11 +291,12 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param string $table The name of the table to get the data from
      * @param int $limit The number of records to return
      * @param int $offset Where to start counting the limit from
+     * @param string $additionalSql Any additional sql to add to the query
      * @return mixed[] An array of records
      */
-    private function GetDataSlice(wpdb $db, $table, $limit, $offset) {
+    private function GetDataSlice(wpdb $db, $table, $limit, $offset, $additionalSql = '') {
         // get a slice of the data
-        $sql = 'SELECT * FROM '.$table.' LIMIT '.$limit.' OFFSET '.$offset;
+        $sql = 'SELECT * FROM '.$table.' '.$additionalSql.' LIMIT '.$limit.' OFFSET '.$offset;
         $data = $db->get_results($sql, ARRAY_A);
 
         return $data;
@@ -296,11 +307,12 @@ class S3_Migrator_Command extends WP_CLI_Command {
      *
      * @param wpdb $db The database object
      * @param string $table The name of the table to count
+     * @param string $additionalSql Any additional sql to add to the query
      * @return int The size of the table
      */
-    private function GetCount(wpdb $db, $table) {
+    private function GetCount(wpdb $db, $table, $additionalSql = '') {
         // get a count of all data
-        $sql = 'SELECT COUNT(*) AS counted FROM '.$table;
+        $sql = 'SELECT COUNT(*) AS counted FROM '.$table.' '.$additionalSql.'';
         $data = $db->get_row($sql);
 
         return isset($data->counted) ? $data->counted : 0;
