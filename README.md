@@ -19,14 +19,14 @@ The easiest way to do this is to use `s3cmd`. Run the following command to setup
 
     s3cmd --configure
 
-Now you have it configured, you can use the following command to copy all files for a site from wordpress to S3:
+Now you have it configured, you can use the following command to copy all files for a site from wordpress to S3. Note the additional headers set. These are for adding caching headers to the image to cache them for 10 years. This is useful as WP tries not to upload duplicate images:
 
     cd <wordpress-folder>/htdocs/wp-content/uploads
-    s3cmd put -r --no-progress sites/2/ s3://testbasket/wp-content/uploads/sites/2/
+    s3cmd put -r --no-progress sites/2/ s3://testbasket/wp-content/uploads/sites/2/ --add-header="Expires:`date -u +"%a, %d %b %Y %H:%M:%S GMT" --date "10 Years"`" --add-header='Cache-Control:max-age=315360000, public'
 
 If you have a lot of images, then it's worth breaking down by month and year.
 
-    s3cmd put -r --no-progress sites/2/2014/02/ s3://testbasket/wp-content/uploads/sites/2/2014/02/
+    s3cmd put -r --no-progress sites/2/2014/02/ s3://testbasket/wp-content/uploads/sites/2/2014/02/ --add-header="Expires:`date -u +"%a, %d %b %Y %H:%M:%S GMT" --date "10 Years"`" --add-header='Cache-Control:max-age=315360000, public'
 
 After you've finished uploading your files, you need to set all of your images to be public:
 
