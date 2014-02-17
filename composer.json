@@ -1,0 +1,16 @@
+{
+    "name"       : "ipcmedia/amazon-s3-migrator",
+    "description": "Updates a WP site so that all old image links point to S3",
+    "homepage"   : "https://github.com/ipcmedia/amazon-s3-migrator/",
+    "type"       : "wordpress-plugin",ss
+    "license"    : "GPLv3",
+    "authors"    : [
+        {
+            "name"    : "Nick Stacey",
+            "homepage": "http://www.ipcmedia.com/"
+        }
+    ],
+    "require": {
+        "composer/installers": "~1.0"
+    }
+}
