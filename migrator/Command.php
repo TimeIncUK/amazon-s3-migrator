@@ -27,7 +27,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * will require the domain of "s3-eu-west-1.amazonaws.com/inspire-ipcmedia-com"
      * and the prefix of "inspirewp/live/"
      *
-     * @synopsis --domain=<domain> [--batch=<count>] [--type=<type>] [--ignore-meta-keys=<ignore-meta-keys>]
+     * @synopsis --domain=<domain> [--batch=<count>] [--type=<type>] [--ignore-meta-keys=<ignore-meta-keys>] [--prefix=<prefix>]
      * @param array $positionalArgs The arguments supplied by the CLI, these are ignored by this function
      * @param array $args The additional options supplied by the CLI, in this case the batch count
      */
