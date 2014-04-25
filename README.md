@@ -32,8 +32,8 @@ After you've finished uploading your files, you need to set all of your images t
 
     s3cmd setacl s3://testbasket/wp-content/ --acl-public --recursive
 
-With the first copied over, ssh into your server, navigate to your wordpress installation and run the following:
+With the files copied over, ssh into your server, navigate to your wordpress installation and run the following:
 
     wp s3 Migrate --url="<site_url>" --path="htdocs" --domain=s3-eu-west-1.amazonaws.com/testbucket --type=all --ignore-meta-keys=amazonS3_info
 
-This code run on the `blog id` is retrieved from the database table `wp_blogs` using the `--url` flag.
+This code runs on the `blog id`, which is retrieved from the database table `wp_blogs` using the `--url` flag.
