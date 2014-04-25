@@ -21,6 +21,11 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * : Only migrate a certain type. This can be `all`, `images`, `posts`, `postmeta`, or `options`
      * ignore-meta-keys=<ignore-meta-keys>
      * : Some post meta data is only for storage and doesn't need to be converted. This takes a csv of meta keys
+     * prefix=<prefix>
+     * : A prefix for the path, for instance an image that needs to be at the path:
+     * https://s3-eu-west-1.amazonaws.com/inspire-ipcmedia-com/inspirewp/live/wp-content/uploads/sites/2/2012/10/P1070252-e1398158155822-630x418.jpg
+     * will require the domain of "s3-eu-west-1.amazonaws.com/inspire-ipcmedia-com"
+     * and the prefix of "inspirewp/live/"
      *
      * @synopsis --domain=<domain> [--batch=<count>] [--type=<type>] [--ignore-meta-keys=<ignore-meta-keys>]
      * @param array $positionalArgs The arguments supplied by the CLI, these are ignored by this function
@@ -36,26 +41,27 @@ class S3_Migrator_Command extends WP_CLI_Command {
         $limit = isset($args['batch']) ? $args['batch'] : 1000;
         $siteDomain = $args['domain'];
         $type = isset($args['type']) ? $args['type'] : 'all';
+        $prefix = isset($args['prefix']) ? $args['prefix'] : '';
         $ignoreMeta = isset($args['ignore-meta-keys']) ? explode(',', $args['ignore-meta-keys']) : array();
 
         // migrate images separately from posts as they need special meta
         if ($type === 'all' || $type === 'images') {
-            $this->MigrateImages($db, $limit, $siteDomain);
+            $this->MigrateImages($db, $limit, $siteDomain, $prefix);
         }
 
         // migrate posts table
         if ($type === 'all' || $type === 'posts') {
-            $this->MigratePosts($db, $limit, $siteDomain);
+            $this->MigratePosts($db, $limit, $siteDomain, $prefix);
         }
 
         // migrate post meta table
         if ($type === 'all' || $type === 'postmeta') {
-            $this->MigratePostMeta($db, $limit, $siteDomain, $ignoreMeta);
+            $this->MigratePostMeta($db, $limit, $siteDomain, $prefix, $ignoreMeta);
         }
 
         // migrate options table
         if ($type === 'all' || $type === 'options') {
-            $this->MigrateOptions($db, $limit, $siteDomain);
+            $this->MigrateOptions($db, $limit, $siteDomain, $prefix);
         }
     }
 
@@ -65,8 +71,9 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param wpdb $db The database object
      * @param int $limit The number of records to return each slice
      * @param string $siteDomain The domain to replace the images' domain with
+     * @param string $prefix The prefix of the image path
      */
-    public function MigrateImages(wpdb $db, $limit, $siteDomain) {
+    public function MigrateImages(wpdb $db, $limit, $siteDomain, $prefix = '') {
         // get a count of the attachments
         $sql = 'SELECT COUNT(id) AS counted FROM '.$db->posts.' WHERE post_type = "attachment"';
         $count = $db->get_row($sql)->counted;
@@ -98,7 +105,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 // if no s3 data exists already then generate
                 if (sizeof($meta) === 0 && sizeof($attached) === 1) {
                     // build the new s3 meta data
-                    $url = 'wp-content/uploads/'.($db->blogid != 1 ? 'sites/'.$db->blogid.'/' : '').$attached[0]['meta_value'];
+                    $url = $prefix.'wp-content/uploads/'.($db->blogid != 1 ? 'sites/'.$db->blogid.'/' : '').$attached[0]['meta_value'];
                     $metaData = array('bucket' => $bucket, 'key' => $url);
 
                     // save the meta data
@@ -120,8 +127,9 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param wpdb $db The database object
      * @param int $limit The number of records to return each slice
      * @param string $siteDomain The domain to replace the images' domain with
+     * @param string $prefix The prefix of the image path
      */
-    private function MigratePosts(wpdb $db, $limit, $siteDomain) {
+    private function MigratePosts(wpdb $db, $limit, $siteDomain, $prefix = '') {
         // get a count of posts
         $count = $this->GetCount($db, $db->posts);
 
@@ -135,8 +143,8 @@ class S3_Migrator_Command extends WP_CLI_Command {
 
             // loop through the data looking for fields to replace
             foreach ($data as $record) {
-                $record['guid'] = $this->ReplaceUrl($record['guid'], $siteDomain);
-                $record['post_content'] = $this->ReplaceUrl($record['post_content'], $siteDomain);
+                $record['guid'] = $this->ReplaceUrl($record['guid'], $siteDomain, $prefix);
+                $record['post_content'] = $this->ReplaceUrl($record['post_content'], $siteDomain, $prefix);
 
                 // save the post data
                 wp_update_post($record);
@@ -154,9 +162,10 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param wpdb $db The database object
      * @param int $limit The number of records to return each slice
      * @param string $siteDomain The domain to replace the images' domain with
+     * @param string $prefix The prefix of the image path
      * @param array $ignoreKeys An array of keys to ignore converting
      */
-    private function MigratePostMeta(wpdb $db, $limit, $siteDomain, $ignoreKeys = array()) {
+    private function MigratePostMeta(wpdb $db, $limit, $siteDomain, $prefix = '', $ignoreKeys = array()) {
         // loop through the ignore keys and add them to the sql
         $additionalOptions = array('meta_value LIKE "%http%"');
         foreach ($ignoreKeys as $key) {
@@ -191,10 +200,10 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 // loop through the meta values and update them
                 if (is_array($meta)) {
                     foreach ($meta as $key => $value) {
-                        $meta[$key] = $this->ReplaceUrl($value, $siteDomain);
+                        $meta[$key] = $this->ReplaceUrl($value, $siteDomain, $prefix);
                     }
                 } else {
-                    $meta = $this->ReplaceUrl($record['meta_value'], $siteDomain);
+                    $meta = $this->ReplaceUrl($record['meta_value'], $siteDomain, $prefix);
                 }
 
                 // save the post meta
@@ -213,8 +222,9 @@ class S3_Migrator_Command extends WP_CLI_Command {
      * @param wpdb $db The database object
      * @param int $limit The number of records to return each slice
      * @param string $siteDomain The domain to replace the images' domain with
+     * @param string $prefix The prefix of the image path
      */
-    private function MigrateOptions(wpdb $db, $limit, $siteDomain) {
+    private function MigrateOptions(wpdb $db, $limit, $siteDomain, $prefix = '') {
         // get a count of posts
         $count = $this->GetCount($db, $db->options);
 
@@ -235,11 +245,11 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 if (is_array($option)) {
                     foreach ($option as $key => $value) {
                         if (is_string($value)) {
-                            $option[$key] = $this->ReplaceUrl($value, $siteDomain);
+                            $option[$key] = $this->ReplaceUrl($value, $siteDomain, $prefix);
                         }
                     }
                 } else {
-                    $option = $this->ReplaceUrl($record['option_value'], $siteDomain);
+                    $option = $this->ReplaceUrl($record['option_value'], $siteDomain, $prefix);
                 }
 
                 // save the post meta
@@ -260,9 +270,10 @@ class S3_Migrator_Command extends WP_CLI_Command {
      *
      * @param string $text The text to replace the images within
      * @param string $siteDomain The domain to replace the images' with
+     * @param string $prefix The prefix of the image path
      * @return string The text with updated images
      */
-    private function ReplaceUrl($text, $siteDomain) {
+    private function ReplaceUrl($text, $siteDomain, $prefix = '') {
         // capture any image that matches a wp uploaded image url
         if (!is_array($text) && preg_match_all('#(https?://)([^/]+)(/wp-content/uploads/(.+)\.(png|gif|jpg|jpeg))#U', $text, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER)) {
 
@@ -273,7 +284,7 @@ class S3_Migrator_Command extends WP_CLI_Command {
                 // get the space to replace
                 $startPos = $match[0][1];
                 $length = strlen($match[0][0]);
-                $url = $match[1][0].$siteDomain.$match[3][0];
+                $url = $match[1][0].$siteDomain.$prefix.$match[3][0];
 
                 // rebuild the text with the new image
                 $text = substr($text, 0, $startPos).$url.substr($text, $startPos + $length);
