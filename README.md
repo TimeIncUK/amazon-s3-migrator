@@ -51,3 +51,8 @@ Only migrate a certain type. This can be `all`, `images`, `posts`, `postmeta`, o
 
 `ignore-meta-keys=<ignore-meta-keys>`
 Some post meta data is only for storage and doesn't need to be converted. This takes a csv of meta keys
+
+`prefix=<prefix>`
+A prefix for the path, for instance an image that needs to be at the path:
+https://s3-eu-west-1.amazonaws.com/inspire-ipcmedia-com/inspirewp/live/wp-content/uploads/sites/2/2012/10/P1070252-e1398158155822-630x418.jpg
+will require the domain of "s3-eu-west-1.amazonaws.com/inspire-ipcmedia-com" and the prefix of "inspirewp/live/"
