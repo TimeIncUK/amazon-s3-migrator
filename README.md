@@ -32,8 +32,22 @@ After you've finished uploading your files, you need to set all of your images t
 
     s3cmd setacl s3://testbasket/wp-content/ --acl-public --recursive
 
-With the first copied over, ssh into your server, navigate to your wordpress installation and run the following:
+With the files copied over, ssh into your server, navigate to your wordpress installation and run the following:
 
     wp s3 Migrate --url="<site_url>" --path="htdocs" --domain=s3-eu-west-1.amazonaws.com/testbucket --type=all --ignore-meta-keys=amazonS3_info
 
-This code run on the `blog id` is retrieved from the database table `wp_blogs` using the `--url` flag.
+This code runs on the `blog id`, which is retrieved from the database table `wp_blogs` using the `--url` flag.
+
+The options available are:
+
+`domain=<domain>`
+The S3 domain and bucket to replace the images with, e.g. s3-eu-west-1.amazonaws.com/testbucket. This corresponds to the path above of s3://testbasket/wp-content/uploads/sites/2/2014/02/
+
+`batch=<count>`
+The number of records to test in one go. This defaults to 1000
+
+`type=<type>`
+Only migrate a certain type. This can be `all`, `images`, `posts`, `postmeta`, or `options`
+
+`ignore-meta-keys=<ignore-meta-keys>`
+Some post meta data is only for storage and doesn't need to be converted. This takes a csv of meta keys
