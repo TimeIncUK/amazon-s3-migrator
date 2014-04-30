@@ -277,6 +277,11 @@ class S3_Migrator_Command extends WP_CLI_Command {
         // capture any image that matches a wp uploaded image url
         if (!is_array($text) && preg_match_all('#(https?://)([^/]+)(/wp-content/uploads/(.+)\.(png|gif|jpg|jpeg))#U', $text, $matches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER)) {
 
+            // update the prefix to have a slash on the start and not on the
+            // end. This is because the of the regex used to retrieve
+            // wp-content with a slash
+            $prefix = '/'.trim($prefix, '/');
+
             // replace each image url in reverse order. This is because we're
             // using strpos, so in reverse order these will not change
             $matches = array_reverse($matches);
